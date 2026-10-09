@@ -270,10 +270,10 @@ int oddParity(int x) {
  *   Rating: 5
  */
 int rotateRightBits(int x, int n) {
-  int x1 = x << (32 - n);
-  int x2 = (x >> n) & ~((~0) << (32 - n));
-  int result = x1 | x2;
-  return result;
+  int shift = (32 + ~n + 1) & 31;
+  int x1 = x << shift;
+  int x2 = (x >> n) & ~((~0) << shift);
+  return x1 | x2;
 }
 
 // P10
@@ -289,7 +289,7 @@ int rotateRightBits(int x, int n) {
  */
 int roundEvenPow2(int x, int n) {
   int result, t, s;
-  t = x + ~((~0) << (n - 1));
+  t = x + ~((~0) << (n + (~0)));
   s = 1 & (x >> n);
   result = ((t + s) >> n) << n;
   return result;
@@ -422,7 +422,7 @@ unsigned floatScaleThreeHalves(unsigned uf) {
     base_exp = -150;
   } else {
     M = (1 << 23) | frac;
-    base_exp = (int)exp_ - 151;
+    base_exp = exp_ - 151;
   }
   unsigned N = M * 3;
   int L = 31;
@@ -432,7 +432,6 @@ unsigned floatScaleThreeHalves(unsigned uf) {
   if (E >= -126) {
     int exp_new = E + 127;
     if (exp_new >= 255) {
-
       return s | 0x7F800000;
     }
     int shift = L - 23;
@@ -459,8 +458,7 @@ unsigned floatScaleThreeHalves(unsigned uf) {
     }
     return s | Q;
   }
-}
-// P16
+} // P16
 /*
  * floatRoundEven - round the floating-point value represented by uf to the
  *   nearest integer, with halfway cases rounded to the even integer. Return
@@ -517,19 +515,25 @@ unsigned floatRoundEven(unsigned uf) {
  */
 unsigned float_i2f(int x) {
   unsigned s, exp_ = 31, frac;
-  unsigned a = (x < 0) ? -(unsigned)x : (unsigned)x;
   unsigned point = 0x80000000, fracp = 0x3FFFFF80;
   unsigned result;
+
   if (x == 0)
     return 0;
-  if (x == 0x80000000)
+  if (x == ~0x7FFFFFFF)
     return 0xCF000000;
-  s = x & point;
+
+  int mask = x >> 31;
+  unsigned a = (x ^ mask) + (mask & 1);
+
+  s = x & 0x80000000;
   point = point >> 1;
+
   while ((point & a) == 0) {
     a = a << 1;
     exp_--;
   }
+
   if ((a & 0x40) && ((a & 0x3F) || (a & 0x80))) {
     a += 0x40;
   }
@@ -537,12 +541,12 @@ unsigned float_i2f(int x) {
     a = a >> 1;
     exp_++;
   }
+
   frac = (a & fracp) >> 7;
   exp_ = (exp_ + 126) << 23;
   result = s | frac | exp_;
   return result;
 }
-
 // P18
 /*
  * bitCount - return count of number of 1's in the binary representation of x
